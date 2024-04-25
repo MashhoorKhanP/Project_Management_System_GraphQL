@@ -11,11 +11,11 @@ const ProjectSchema = new mongoose.Schema({
     type: String,
     enum: ["Not Started", "In Progress", "Completed"],
   },
-  clientId : {
+  clientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Client"
   }
-});
+}, { timestamps: true });
 
 const Project = mongoose.model("Project", ProjectSchema);
 module.exports = Project;

@@ -10,7 +10,7 @@ const ClientSchema = new mongoose.Schema({
   phone: {
     type: String
   }
-});
+}, { timestamps: true });
 
 const Client = mongoose.model("Client", ClientSchema);
 module.exports = Client;

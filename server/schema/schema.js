@@ -1,4 +1,4 @@
-const { GraphQLObjectType, GraphQLSchema, GraphQLList, GraphQLID, GraphQLString } = require("graphql");
+const { GraphQLObjectType, GraphQLSchema, GraphQLList, GraphQLNonNull, GraphQLEnumType, GraphQLString, GraphQLID, } = require("graphql");
 const { projects, clients } = require("../sampleData");
 
 // Mongoose Models
@@ -18,29 +18,30 @@ const ClientType = new GraphQLObjectType({
 
 // Project Type
 const ProjectType = new GraphQLObjectType({
-  name:"Project",
-  fields:() => ({
+  name: "Project",
+  fields: () => ({
     id: { type: GraphQLID },
     // clientId: {type: GraphQLString},
-    name: {type: GraphQLString},
-    description: {type: GraphQLString},
-    status: { type: GraphQLString},
+    name: { type: GraphQLString },
+    description: { type: GraphQLString },
+    status: { type: GraphQLString },
     client: {
       type: ClientType,
-      resolve(parent,args) {
-        return Client.findById(parent.ClientId);
+      resolve(parent, args) {
+        return Client.findById(parent.clientId);
       }
     }
   }),
 
 })
 
+// Queries
 const RootQuery = new GraphQLObjectType({
   name: "RootQueryType",
   fields: {
     projects: {
       type: new GraphQLList(ProjectType),
-      resolve(parent,args) {
+      resolve(parent, args) {
         return Project.find();
       }
     },
@@ -53,7 +54,7 @@ const RootQuery = new GraphQLObjectType({
     },
     clients: {
       type: new GraphQLList(ClientType),
-      resolve(parent,args) {
+      resolve(parent, args) {
         return Client.find();
       }
     },
@@ -67,6 +68,114 @@ const RootQuery = new GraphQLObjectType({
   }
 });
 
+// Mutations
+const mutation = new GraphQLObjectType({
+  name: "Mutation",
+  fields: {
+    // Add Client
+    addClient: {
+      type: ClientType,
+      args: {
+        name: { type: GraphQLNonNull(GraphQLString) },
+        email: { type: GraphQLNonNull(GraphQLString) },
+        phone: { type: GraphQLNonNull(GraphQLString) },
+      },
+      resolve(parent, args) {
+        const client = new Client({
+          name: args.name,
+          email: args.email,
+          phone: args.phone
+        });
+        return client.save();
+      }
+    },
+    // Delete Client
+    deleteClient: {
+      type: ClientType,
+      args: {
+        id: { type: GraphQLNonNull(GraphQLID) },
+      },
+      resolve(parent, args) {
+        Project.deleteMany({ clientId: args.id }).then(() => {
+          console.log("Project deleted successfully")
+        });
+        return Client.findByIdAndDelete(args.id)
+      }
+    },
+    // Add Project
+    addProject: {
+      type: ProjectType,
+      args: {
+        name: { type: GraphQLNonNull(GraphQLString) },
+        description: { type: GraphQLNonNull(GraphQLString) },
+        status: {
+          type: new GraphQLEnumType({
+            name: "ProjectStatus",
+            values: {
+              'new': { value: "Not Started" },
+              'progress': { value: "In Progress" },
+              'completed': { value: "Completed" }
+            }
+          }),
+          defaultValue: "Not Started",
+        },
+        clientId: { type: GraphQLNonNull(GraphQLID) },
+      },
+      resolve(parent, args) {
+        const project = new Project({
+          name: args.name,
+          description: args.description,
+          status: args.status,
+          clientId: args.clientId,
+        });
+        return project.save();
+      }
+    },
+    // Delete a project
+    deleteProject: {
+      type: ProjectType,
+      args: {
+        id: { type: GraphQLNonNull(GraphQLID) },
+      },
+      resolve(parent, args) {
+        return Project.findByIdAndDelete(args.id);
+      }
+    },
+    // Update a project
+    updateProject: {
+      type: ProjectType,
+      args: {
+        id: { type: GraphQLNonNull(GraphQLID) },
+        name: { type: GraphQLString },
+        description: { type: GraphQLString },
+        status: {
+          type: new GraphQLEnumType({
+            name: "ProjectStatusUpdate",
+            values: {
+              'new': { value: "Not Started" },
+              'progress': { value: "In Progress" },
+              'completed': { value: "Completed" }
+            }
+          }),
+        },
+      },
+      resolve(parent, args) {
+        return Project.findByIdAndUpdate(args.id,
+          {
+            $set: {
+              name: args.name,
+              description: args.description,
+              status: args.status
+            },
+          },
+          { new: true }
+        )
+      }
+    }
+  },
+})
+
 module.exports = new GraphQLSchema({
-  query: RootQuery
+  query: RootQuery,
+  mutation
 })
